@@ -1,0 +1,52 @@
+name: 'New ssh deploy key to remote repo'
+description: 'Generate a new ssh key pair to permit one repo to deploy to another repo.'
+author: 'fletort'
+branding:
+  icon: 'sliders'
+  color: 'red'
+inputs:
+  deploy_repo:
+    description: 'Repo on which we want to make deployement'
+    required: true
+  client_repo:
+    description: 'Repo that will publish to the deploy_repo'
+    default: '${{ github.repository }}'
+  key_encryption:
+    # dsa | ecdsa | ed25519 | rsa
+    description: 'Encryption type'
+    default: 'rsa'
+  key_size:
+    description: 'Key Size (in bits)'
+    default: '4096'
+  token:
+    description: 'Token used to save the private key on the client_repo secret and to save the public key on the publish key of the deploy_repo'
+    required: true
+  secret_name:
+    description: 'Name of the secret storing the private key'
+    default: 'PUBLISHING_KEY'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Create SSH Key pair
+      run: ssh-keygen -t rsa -b 4096 -C "Deployement to ${{ inputs.deploy_repo }}" -f key -N ""
+      shell: bash
+    
+    - name: Save the Private Key as Local Repo Secret
+      run: gh secret set ${{ inputs.secret_name }} --repo ${{ inputs.client_repo }} < key
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+
+    - name: "Save the public Key as publish key in the ${{ inputs.deploy_repo }} repo"
+      shell: bash
+      run: |
+        existing_id=$(gh repo deploy-key list --repo ${{ inputs.deploy_repo }} --json id,title --jq ".[] | select(.title | contains(\"${{ inputs.client_repo }}\")) | .id")
+        if [[ -n $existing_id ]]; then # Si la clé est déjà définie
+          echo -e "The Public Key for ${{ inputs.client_repo }} already exist in ${{ inputs.deploy_repo }}, we delete it."
+          gh repo deploy-key delete $existing_id --repo ${{ inputs.deploy_repo }}
+        fi
+        echo -e "Save Public Key in ${{ inputs.deploy_repo }}"
+        gh repo deploy-key add key.pub --repo ${{ inputs.deploy_repo }} --allow-write --title "Deployment for ${{ inputs.client_repo }}"
+      env:
+        GH_TOKEN: ${{ inputs.token }}
