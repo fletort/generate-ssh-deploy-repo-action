@@ -5,6 +5,11 @@ setup() {
     load 'test_helper/bats-file/load'
 }
 
+@test "ssh keys are deleted" {
+  assert_file_not_exist key
+  assert_file_not_exist key.pub
+}
+
 @test "ssh private key as secret is defined" {
   run gh secret list --repo ${PUBLISHING_REPO_ORG}/${PUBLISHING_REPO_NAME} --json name --jq '.[].name'
   assert_line --partial 'PUBLISHING_KEY'
