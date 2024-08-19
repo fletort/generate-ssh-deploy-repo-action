@@ -33,7 +33,9 @@ runs:
       shell: bash
     
     - name: Save the Private Key as Local Repo Secret
-      run: gh secret set ${{ inputs.secret_name }} --repo ${{ inputs.client_repo }} < key
+      run: |
+        gh secret set ${{ inputs.secret_name }} --repo ${{ inputs.client_repo }} < key
+        rm key
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
@@ -48,5 +50,6 @@ runs:
         fi
         echo -e "Save Public Key in ${{ inputs.deploy_repo }}"
         gh repo deploy-key add key.pub --repo ${{ inputs.deploy_repo }} --allow-write --title "Deployment for ${{ inputs.client_repo }}"
+        rm key.pub
       env:
         GH_TOKEN: ${{ inputs.token }}
